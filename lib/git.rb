@@ -9,8 +9,20 @@ class Reference
 end
 
 class Vote
-  def self.up! repo, file
-    create_commit! repo, JSON.generate({file => 1})
+  def self.up! repo, *paths
+    details = JSON.generate(paths.inject({}) do |m, p|
+      m.merge({p => 1})
+    end)
+
+    create_commit! repo, details
+  end
+
+  def self.down! repo, *paths
+    details = JSON.generate(paths.inject({}) do |m, p|
+      m.merge({p => -1})
+    end)
+
+    create_commit! repo, details
   end
 
   def self.list repo
@@ -46,7 +58,7 @@ class Vote
 end
 
 class Repository
-  def self.create_reference! repo, name
+  def self.maybe_create_reference! repo, name
     index = repo.index
     index.remove_all
     tree = index.write_tree(repo)
@@ -62,16 +74,17 @@ class Repository
       message: "{}"
     }
 
-    commit = Rugged::Commit.create(repo, details)
-    repo.references.create(Reference.name, commit)
+    begin
+      commit = Rugged::Commit.create(repo, details)
+      repo.references.create(Reference.name, commit)
+    rescue Rugged::ReferenceError
+    end
   end
 
   def self.at uri, &block
     repo = Rugged::Repository.discover uri
 
-    if !repo.references.each_name.include? Reference.name
-      create_reference! repo, Reference.name
-    end
+    maybe_create_reference! repo, Reference.name
 
     block.call repo
   end
