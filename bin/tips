@@ -1,10 +1,17 @@
 #!/usr/bin/env ruby
 
-require 'trollop'
-
 require './lib/git'
 
-COMMANDS = %w(tip wag)
+def usage
+  puts <<EOM
+usage: tip <command> [options]
+
+Commands are:
+    tip <files...>  Tip your hat at files acknowledging the quality work in it
+    wag <files...>  Wag your finger files, someone should really clean these up
+    list            List the ratings for files that have been tipped or wagged
+EOM
+end
 
 cmd = ARGV.shift
 
@@ -16,6 +23,15 @@ Repository.at "." do |repo|
   when "wag"
     Vote.down! repo, *ARGV
     puts "Waged the finger at #{ARGV.count} files"
+  when "list"
+    require 'terminal-table/import'
+
+    list = Vote.list repo
+    table = Terminal::Table.new rows: list.map { |k, v| [k, v] }
+    table.style = {border_x: "", border_i: "", border_y: ""}
+    puts table
+  else
+    usage
   end
 end
 
